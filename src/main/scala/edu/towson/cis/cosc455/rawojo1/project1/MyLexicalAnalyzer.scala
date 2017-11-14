@@ -9,121 +9,220 @@ package edu.towson.cis.cosc455.rawojo1.project1
 
 import scala.collection.mutable.ArrayBuffer
 
+
 class MyLexicalAnalyzer extends LexicalAnalyzer{
-  val lexems: List[String] = List("\\BEGIN", "\\END", "\\TITLE[", "]", "#", "\\PARB","\\PARE", "**", "*", "+", "\\", "[", "(", ")", "![", "\\DEF[", "=", "\\USE[")
-  var pos: Int = -1
-  var c: Char = ' '
-  var currentToken: String = "" //the potential string which will be a token that is fully checked against the grammar
-  var isText : Boolean = false //checks whether or not tokens are text
-  var check : Boolean = false
 
+  var sou: List[Char] = Nil
+  private var currentToken: String = ""
+  private var nextChar: Char = ' '
+  private var startChar: Char = ' '
+  private var pos: Int = 0
+  private var addingText: Boolean = false
 
-  def lookup(): Boolean = {
-    var flag = false
-    if (lexems.contains(currentToken.toUpperCase())) {
-      flag = true
-    }
-    flag
+  private val tag: List[Char] = List(
+    '\\', '#', '*', '[' , '!', ']', '+', '(', ')', '='
+  )
+
+  private val lexems: List[String] = List(CONSTANTS.DOCB, CONSTANTS.DOCE, CONSTANTS.TITLEB, CONSTANTS.BRACKETE, CONSTANTS.HEADING, CONSTANTS.PARAB, CONSTANTS.PARAE, CONSTANTS.BOLD, CONSTANTS.LISTITEM, CONSTANTS.NEWLINE, CONSTANTS.LINKB,
+    CONSTANTS.ADDRESSB, CONSTANTS.ADDRESSE, CONSTANTS.IMAGEB, CONSTANTS.DEFB, CONSTANTS.EQSIGN, CONSTANTS.USEB
+  )
+
+  //Takes the file content and places it in a List for future reference
+  def start(test_file: String): Unit =
+  {
+    sou = test_file.toList
   }
 
-  override def addChar(): Unit = {
-    currentToken = currentToken + c
-  }
-
-  override def getNextToken(): Unit = {
-    Compiler.Parser.isText = false
-    if(isGap()){
-      c = getChar()
-      while(isGap()){
-        c = getChar()
-      }
-    }
-    if(lexems.contains(c.toString)){
-      Compiler.currentToken = c.toString
-      if(c.equals('=') || c.equals(']'))
-        c = getChar()
-    }else if(notText()){
-      addChar()
-      c = getChar()
-      while(!close()){
-        addChar()
-        c= getChar()
-      }
-      if(lexems.contains(c.toString))
-        addChar()
-      if(lookup()){
-        Compiler.currentToken = currentToken
-        currentToken = ""
-        c = getChar()
-      }else{
-        println(currentToken)
-        println("Lexical Error - Unrecognized Special Character")
-        System.exit(1)
-      }
-    }else if(text()){
-      while(text()){
-        Compiler.Parser.isText = true
-        addChar()
-        c = getChar()
-      }
-      Compiler.currentToken = currentToken
-      currentToken = ""
-    }
-  }
-
-
-  override def getChar(): Char = {
-    pos += 1
-    Compiler.fileContents.charAt(pos)
-  }
-
-  def text() : Boolean = {
-    isText = false
-    for(ch <- 'A' to 'Z'){
-      if(c.equals(ch))
-        isText = true
-    }
-    for(ch <- 'a' to 'z'){
-      if(c.equals(ch))
-        isText = true
-    }
-    for(ch <- '0' to '9'){
-      if(c.equals(ch))
-        isText = true
-    }
-    if(c.equals(',') || c.equals('.') || c.equals('?') || c.equals('_')
-      || c.equals('/') || c.equals('\"') || c.equals(' ')){
-      isText = true
-    }
-    isText
-  }
-
-
-  def setCurrent(currentToken: String): Unit = {  // Sets current token in Compiler.scala
-    Compiler.currentToken = currentToken
-  }
-
-  // Method for retrieving terminal tokens
-  def isGap(): Boolean = {
-    if(c.equals('\r') || c.equals('\n') || c.equals(' ') || c.equals('\t')){
+  //Checks to see if the source file given is empty yet
+  def isEmpty(): Boolean =
+  {
+    if (sou.isEmpty)
       true
-    }else{
+    else
+      false
+  }
+
+  //Appropriates the presence of Text in the File
+  def isText(currentToken: String): Boolean = {
+     currentToken match {
+       case CONSTANTS.TEXT =>  true
+       case _ => false
+     }
+  }
+
+
+  //Appropriates the presence of spaces in the File
+  def isSpace(c: Char): Boolean =
+  {
+    c == ' ' | c == '\n' | c == '\t' | c == '\r'
+  }
+
+
+  //Appropriates the presence of absence in the File
+  def getNonBlank(): Unit =
+  {
+    while (isSpace(nextChar))
+      getChar()
+  }
+
+
+  //Adding characters to the current token string for the sake of building a full recognizable token.
+  override def addChar(): Unit =
+  {
+    currentToken += nextChar
+  }
+
+
+  override def getChar() : Char =
+  {
+    if (!sou.isEmpty)
+    {
+      nextChar = sou.head
+      sou = sou.tail
+      nextChar
+    }
+    else
+    {
+      println("Lexical Error: " + nextChar + " caused an issue.")
+      System.exit(1)
+      'R'
+    }
+  }
+
+
+  //The next token is grabbed so that the next step can be seen
+  override def getNextToken() : Unit =
+  {
+    currentToken = ""
+    getNonBlank()
+
+    bunch(nextChar)
+  }
+
+
+    //Appropriates the presence of a valid lexem in the File
+  override def lookup(token : String): Boolean = {
+    if (lexems.contains(token))
+    {
+      true
+    }
+    else
+    {
+      println("Lexical error: " + token + " is not a valid token.")
+      System.exit(1)
       false
     }
   }
 
-  def close(): Boolean ={
-    c match{
-      case '\r' | '\n' | '[' | '\\' | ']' | '*' | ')' | '(' => true
-      case _ => false
+  //Text that is fitting the syntax , allows us to get more letters for text
+  def goodText(): Unit =
+  {
+    getChar()
+     //Richard was here
+
+    while (!tag.contains(nextChar))
+    {
+      addChar()
+      getChar()
     }
   }
 
-  def notText(): Boolean ={
-    c match{
-      case '\\' | '*' | '#' | '+' | '[' | '!' => true
-      case _ => false
+  // Bunch is the presence of any special character such as [ , ] , or #
+  def bunch(chr : Char) =
+  {
+    chr match {
+      case '\\' =>
+      {
+        addChar()
+        while (!isSpace(nextChar) && nextChar != '[') {
+          if (currentToken.equalsIgnoreCase(CONSTANTS.DOCE))
+            Compiler.checkFin = true
+
+          getChar()
+
+          if (!isSpace(nextChar)) {
+            addChar()
+          }
+        }
+        if (lookup(currentToken.toUpperCase())) {
+          Compiler.currentToken = currentToken.toString
+        }
+        else
+          println("Lexical Error: " + Compiler.currentToken + " was not a legitimate token.")
+
+        if (nextChar == '[')
+          getChar()
+
+      }
+      case '#' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+        getChar()
+      }
+      case '*' => {
+        addChar()
+        getChar()
+        if (nextChar == '*') {
+          addChar()
+          lookup(currentToken)
+          Compiler.currentToken = currentToken.toString
+          getChar()
+        }
+        else {
+          lookup(currentToken)
+          Compiler.currentToken = currentToken.toString
+        }
+      }
+      case '+' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+        getChar()
+      }
+      case '[' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+        getChar()
+      }
+      case '=' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+        getChar()
+      }
+      case '!' => {
+        addChar()
+        getChar()
+        if (nextChar == '[')
+        {
+          addChar()
+          getChar()
+        }
+
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+      }
+      case '(' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+        getChar()
+      }
+      case ')' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken.toString
+        getChar()
+      }
+      case ']' => {
+        addChar()
+        lookup(currentToken)
+        Compiler.currentToken = currentToken
+        getChar()
+      }
+
     }
   }
-
 }

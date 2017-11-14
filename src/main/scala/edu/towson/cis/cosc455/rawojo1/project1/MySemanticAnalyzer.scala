@@ -16,157 +16,308 @@ import java.io._
 
 class MySemanticAnalyzer {
 
-  var tree : List[String] = Nil
-  var resolvedTree : List[String] = Nil
-  var ind = 0
-  tree = Compiler.Parser.parse.toList.reverse
+  var counter         : Int = 0
+  var markdown         = List("")
+  var chosen          : String = ""
+  var var_d           : String = ""
+  var var_meaning     : String = ""
+  var var2_d          : String = ""
+  var var2_meaning    : String = ""
+  var var3_d          : String = ""
+  var var3_meaning    : String = ""
+  var finale          : String = ""
+  var file_name       : String = "MarkDown_AwojooduR_Project1.html"
 
-  def semantics(): Unit = {
-    while(tree.nonEmpty){
-      tree match{
-        case "DOCB" ::stack =>
-          resolvedTree = "<!DOCTYPE html>\n<html>\n<head>\n" ::resolvedTree
-          tree = stack
-        case "DOCE"::stack =>
-          resolvedTree = "</body>\n</html>"::resolvedTree
-          tree = stack
-        case "TITLEB"::stack =>
-          resolvedTree = "<title>"::resolvedTree
-          tree = stack
-        case "PARAB"::stack =>
-          resolvedTree = "<p>\n"::resolvedTree
-          tree = stack
-        case "PARAE"::stack =>
-          resolvedTree = "</p>\n"::resolvedTree
-          tree = stack
-        case "BOLDB"::stack =>
-          resolvedTree = "<b>"::resolvedTree
-          tree = stack
-        case "BOLDE"::stack =>
-          resolvedTree = "</b>"::resolvedTree
-          tree = stack
-        case "LISTITEMB"::stack =>
-          resolvedTree = "<li>"::resolvedTree
-          tree = stack
-        case "LISTITEME"::stack =>
-          resolvedTree = "</li>\n"::resolvedTree
-          tree = stack
-        case "HEADINGB"::stack =>
-          resolvedTree = "<h1>"::resolvedTree
-          tree = stack
-        case "HEADINGE"::stack =>
-          resolvedTree = "</h1>"::resolvedTree
-          tree = stack
-        case "NEWLINE"::stack =>
-          resolvedTree = "<br>\n"::resolvedTree
-          tree = stack
-        case "DEFB"::stack =>
-          tree = stack
-        case "EQSIGN"::stack =>
-          tree = stack.tail
-        case "DEFE"::stack =>
-          tree = stack.tail
-        case "LINKB"::stack =>
-          tree = stack
-        case "IMAGEB"::stack =>
-          tree = stack
-        case "USEB"::stack =>
-          tree = stack
-        case "USEE"::stack =>
-          resolvedTree = getContent(stack.head)::resolvedTree
-          tree = stack.tail
-        case "ADDRESSE"::stack =>
-          val linkImg = linkImage(tree)
-          val link = stack.head
-          val desc = stack.drop(3).head
-          linkImg match{
-            case 0 =>
-              resolvedTree = "<a href=" + link + ">" +desc +"</a>\n"::resolvedTree
-            case 1 =>
-              resolvedTree = "<img src="+ link +" alt=\"" + desc +"\">\n"::resolvedTree
-            case _ =>
-              println("Semantic Error - Unable to locate link or image")
-          }
-          tree = stack.drop(4)
-        case x::stack =>
-          resolvedTree = x::resolvedTree
-          tree = stack
-        case Nil => Nil
-      }
-    }
-    writeHTML(resolvedTree.mkString(""))
-    openHTMLFileInBrowser(Compiler.fileName + ".html")
+
+  /*This will be the Compilers call to initialize the conversion process
+  * Professors deliverable ask that we take the parse tree and convert it one by one into HTML code
+  * */
+  def startSem(): Unit = {
+    chosen = Compiler.Parser.parse(0)
+    toHTML(chosen)
   }
 
 
+  def getnext(): Unit = {
+    Compiler.Parser.chachaSlide()
+    chosen = Compiler.Parser.parse(0)
+  }
 
-  def getContent(s : String): String ={
-    var temp = 0
-    var flag = false
-    var answer = ""
-    while(temp < tree.size -1 && !flag){
-      if(Compiler.Scanner.lexems.contains(tree(temp))){
-        if(tree(temp) == "DEFE"){
-          val tera = tree(temp + 3).replaceAll("\\s", "")
-          if(tera == s.replaceAll("\\s","")){
-            flag = true
-            answer = tree(temp+1)
+  /*Step by step the Gittex conversion happens as the predetermined CONSTANTS BNF is used to identify which html
+    should be place in place of the Grammar.
+  * */
+  def toHTML(changeme : String) : Unit = {
+    if (chosen.equalsIgnoreCase(CONSTANTS.DOCB)) {
+      markdown = "<html>" :: markdown
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.TITLEB)) {
+      getnext()
+      markdown = "<head>" :: markdown
+      markdown = "<title>" :: markdown
+      markdown = chosen :: markdown
+      markdown = "</title>" :: markdown
+      markdown = "</head>" :: markdown
+      getnext()
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.HEADING)) {
+      getnext()
+      markdown = "<h1>" :: markdown
+      markdown = chosen :: markdown
+      markdown = "</h1>" :: markdown
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.PARAB)) {
+      markdown = "<p>" :: markdown
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.PARAE)) {
+      markdown = "</p>" :: markdown
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.BOLD)) {
+      getnext()
+      markdown = "<b>" :: markdown
+      markdown = chosen :: markdown
+      markdown = "</b>" :: markdown
+      getnext()
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.LISTITEM)) {
+      getnext()
+      markdown = "<li>" :: markdown
+
+      if (chosen.equalsIgnoreCase(CONSTANTS.USEB)) {
+        getnext()
+        var requested_var: String = chosen
+
+        if (counter == 1) {
+          if (requested_var == var_d) {
+            markdown = var_meaning :: markdown
           }
-        }else{
-          val beginning = tree(temp).dropRight(2) + "B>"
-          while(tree(temp) != beginning && temp < tree.size-1){
-            temp = temp + 1
+          else {
+            println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+            System.exit(1)
           }
         }
+        else if (counter == 2) {
+          if (requested_var == var2_d) {
+            markdown = var2_meaning :: markdown
+            counter = counter - 1
+          }
+          else {
+            println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+            System.exit(1)
+          }
+        }
+        else {
+          if (requested_var == var_d) {
+            markdown = var_meaning :: markdown
+          }
+          else if (requested_var == var2_d) {
+            markdown = var2_meaning :: markdown
+          }
+          else if (requested_var == var3_d) {
+            markdown = var3_meaning :: markdown
+          }
+          else {
+            println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+            System.exit(1)
+          }
+        }
+        getnext()
+        getnext()
       }
-      temp= temp +1
-    }
-    if(!flag){
-      println("Semantic Error! Cannot find variable def for: " + s)
-      System.exit(1)
-    }
-    answer
-  }
+      else {
+        markdown = chosen :: markdown
+        getnext()
+      }
 
+      if (chosen.equalsIgnoreCase(CONSTANTS.USEB)) {
+        getnext()
+        var requested_var: String = chosen
 
-  def linkImage(eList : List[String]): Int ={
-    var t = 0
-    var flag = false
-    while(t < tree.size -1 && !flag){
-      if(Compiler.Scanner.lexems.contains(tree(t))){
-        tree(t) match{
-          case "LINKB" => flag = true
-            return 0
-          case "IMAGEB" => flag = false
-            return 1
+        if (counter == 1) {
+          if (requested_var == var_d) {
+            markdown = var_meaning :: markdown
+          }
+          else {
+            println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+            System.exit(1)
+          }
+        }
+        else if (counter == 2) {
+          if (requested_var == var2_d) {
+            markdown = var2_meaning :: markdown
+            counter = counter - 1
+          }
+          else {
+            println("Semantic error: the variable '" + requested_var + "' was never properly defined.")
+            System.exit(1)
+          }
+        }
+        else {
+          if (requested_var == var_d) {
+            markdown = var_meaning :: markdown
+          }
+          else if (requested_var == var2_d) {
+            markdown = var2_meaning :: markdown
+          }
+          else if (requested_var == var3_d) {
+            markdown = var3_meaning :: markdown
+          }
+          else {
+            println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+            System.exit(1)
+          }
+        }
+        getnext()
+        getnext()
+      }
+      markdown = "</li>" :: markdown
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.NEWLINE)) {
+      markdown = "<br>" :: markdown
+      getnext()
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.LINKB)) {
+      getnext()
+      val gettem: String = chosen
+
+      getnext()
+      getnext()
+      getnext()
+
+      val linktag: String = "<a href = \"" + chosen + "\">"
+      markdown = linktag :: markdown
+      markdown = gettem :: markdown
+      markdown = "</a> " :: markdown
+      getnext() // gets ')'
+      getnext() // gets next real token
+
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.IMAGEB)) {
+      getnext()
+
+      val gettem: String = chosen + "\">"
+      getnext() // gets ']'
+      getnext() // gets '('
+      getnext() // gets link
+
+      val linktag: String = "<img src =\"" + chosen + "\" alt=\""
+      markdown = linktag :: markdown
+      markdown = gettem :: markdown
+      getnext() // gets ')'
+      getnext() // gets next real token
+
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.DEFB)) {
+      counter = counter + 1
+      getnext()
+
+      if (counter == 1) {
+        var_d = chosen
+        var_d = var_d.dropRight(1)
+        getnext() // gets '='
+        getnext() // gets var_ds meaning
+        var_meaning = chosen + " "
+      }
+      else if (counter == 2) {
+        var2_d = chosen
+        var2_d = var2_d.dropRight(1)
+        getnext() // gets '='
+        getnext() // gets var_ds meaning
+        var2_meaning = chosen + " "
+      }
+      else if (counter == 3) {
+        var3_d = chosen
+        var3_d = var3_d.dropRight(1)
+        getnext() // gets '='
+        getnext() // gets var_ds meaning
+        var3_meaning = chosen + " "
+      }
+
+      getnext() // gets ']'
+      getnext() // gets next real token
+
+      toHTML(chosen)
+    }
+    else if (chosen.equalsIgnoreCase(CONSTANTS.USEB)) {
+      getnext()
+      var requested_var: String = chosen
+
+      if (counter == 1) {
+        if (requested_var == var_d) {
+          markdown = var_meaning :: markdown
+        }
+        else {
+          println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+          System.exit(1)
         }
       }
-      t = t+1
+      else if (counter == 2) {
+        if (requested_var == var2_d) {
+          markdown = var2_meaning :: markdown
+          counter = counter - 1
+        }
+        else {
+          println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+          System.exit(1)
+        }
+      }
+      else {
+        if (requested_var == var_d) {
+          markdown = var_meaning :: markdown
+        }
+        else if (requested_var == var2_d) {
+          markdown = var2_meaning :: markdown
+        }
+        else if (requested_var == var3_d) {
+          markdown = var3_meaning :: markdown
+        }
+        else {
+          println("Semantic error: the variable '" + requested_var + "' was never defined in CONSTANTS.")
+          System.exit(1)
+        }
+      }
+
+      getnext()
+      getnext()
+
+      toHTML(chosen)
     }
-    -1
+    else if (chosen.equalsIgnoreCase(CONSTANTS.DOCE)) {
+      markdown = "</html>" :: markdown
+    }
+    else {
+      markdown = chosen :: markdown
+      getnext()
+      toHTML(chosen)
+    }
+  }
+
+  //Finally we get to print out, into a new file, the HTML code produced
+  def writeOut(): Unit = {
+    markdown = markdown.reverse.drop(1)
+    finale = markdown.mkString
+
+    val HTML_Document = new PrintWriter(new File(file_name))
+
+    HTML_Document.write(finale)
+    HTML_Document.close
   }
 
 
-  def writeHTML(s : String): Unit = {
-    val writer = new PrintWriter(new File(Compiler.fileName + ".html"))
-    writer.write(s)
-    writer.close()
-  }
-
-  /* * Hack Scala/Java function to take a String filename and open in default web browser. */
-  def openHTMLFileInBrowser(htmlFileStr : String) = {
-    val file : File = new File(htmlFileStr.trim)
-    println(file.getAbsolutePath)
-    if (!file.exists())
-      sys.error("File " + htmlFileStr + " does not exist.")
-
-    try {
-      Desktop.getDesktop.browse(file.toURI)
-    }
-    catch {
-      case ioe: IOException => sys.error("Failed to open file:  " + htmlFileStr)
-      case e: Exception => sys.error("He's dead, Jim!")
-    }
-  }
 }  // End of MySemanticAnalyzer.scala
 
